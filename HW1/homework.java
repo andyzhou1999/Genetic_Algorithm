@@ -28,32 +28,6 @@ class City{
     }
 }
 
-class Path{
-
-    List<City> path;
-    double score;
-
-    Path(){
-
-        path = new ArrayList<>();
-        score = 0;
-    }
-
-    public void addCity(City c){
-
-        if (path.isEmpty()){
-
-            path.add(c);
-        }
-        else{
-
-            City prev = path.get(path.size() - 1);
-            path.add(c);
-            score += Math.sqrt(Math.pow(prev.x - c.x, 2) + Math.pow(prev.y - c.y, 2) + Math.pow(prev.z - c.z, 2));
-        }
-    }
-}
-
 class Pair implements Comparable{
 
     List<Integer> path;
@@ -87,6 +61,11 @@ class Pair implements Comparable{
             return 0;
         }
     }
+
+    public String toString(){
+
+        return path.toString();
+    }
 }
 
 class TSP{
@@ -100,7 +79,7 @@ class TSP{
         Scanner scan = null;
         cities = new ArrayList<>();
         try {
-            scan = new Scanner(new File("input1.txt"));
+            scan = new Scanner(new File("input3.txt"));
 
             int numCity = Integer.parseInt(scan.nextLine());
 
@@ -109,7 +88,7 @@ class TSP{
                 cities.add(new City(scan.nextInt(), scan.nextInt(), scan.nextInt()));
             }
 
-            population = initializePopulation(10);
+            population = initializePopulation(20);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
@@ -127,10 +106,14 @@ class TSP{
         PrintWriter pw = null;
         try {
             pw = new PrintWriter(new File("output.txt"));
-            List<City> path = getPath();
-            for (City c : path){
-                pw.println(c);
+
+            Pair best = population.get(0);
+            for (Integer i : best.path){
+
+                pw.println(cities.get(i));
             }
+
+            pw.println(cities.get(best.path.get(0)));
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
@@ -140,22 +123,109 @@ class TSP{
 
                 pw.close();
             }
+
+            System.out.println(population.get(0).score);
         }
     }
 
     public void approximate(){
 
-        int generation = 1000;
-        double threshold = 0.5;
+        int generation = 10000;
 
         while (generation-- > 0){
 
             Collections.sort(population);
+            //System.out.println("Current best path score: " + population.get(0).score);
+            //System.out.println(population.get(0));
 
+            List<Pair> pool = getMatingPool(1);
+            population = getChildren(pool, 1);
+        }
+
+        Collections.sort(population);
+        //System.out.println("Current best path score: " + population.get(0).score);
+        outputPath();
+    }
+
+    public List<Pair> getChildren(List<Pair> pool, int top){
+
+        List<Pair> children = new ArrayList<>();
+        for (int i = 0; i < top; i++){
+
+            children.add(pool.get(i));
+        }
+
+        Collections.shuffle(pool);
+        for (int i = 0; i < population.size() - top; i++){
+
+            int start = (int)(0.1 * cities.size() + random.nextDouble() * 0.2 * cities.size());
+            int end = (int)(0.5 * cities.size() + random.nextDouble() * 0.2 * cities.size());
+            Pair child = crossover(pool.get(i), pool.get(pool.size() - i - 1), start, end);
+
+            mutate(child);
+            children.add(child);
+        }
+
+        return children;
+
+    }
+
+    public void mutate(Pair child) {
+
+        final double RATE = 0.1;
+
+        for (int i = 0; i < cities.size(); i++){
+
+            if (random.nextDouble() < RATE){
+
+
+                int change = random.nextInt(cities.size());
+                int temp = child.path.get(i);
+
+                child.path.set(i, child.path.get(change));
+                child.path.set(change, temp);
+            }
         }
     }
 
-    public
+    public List<Pair> getMatingPool(int top){
+
+        List<Double> probability = new ArrayList<>();
+        List<Pair> pool = new ArrayList<>();
+        double sum = 0;
+
+        for (int i = 0; i < top; i++){
+
+            pool.add(population.get(i));
+        }
+
+        for (int i = 0; i < population.size(); i++){
+
+            sum += 1 / population.get(i).score;
+            probability.add(sum);
+        }
+
+        for (int i = 0; i < probability.size(); i++){
+
+            probability.set(i, probability.get(i) / sum);
+        }
+
+        for (int i = 0; i < population.size() - top; i++){
+
+            double pick = random.nextDouble();
+            int j = 0;
+            for (; j < probability.size(); j++){
+
+                if (pick <= probability.get(j)){
+
+                    pool.add(population.get(j));
+                    break;
+                }
+            }
+        }
+
+        return pool;
+    }
 
     public Pair crossover(Pair p1, Pair p2, int start, int end){
 
@@ -217,11 +287,6 @@ class TSP{
         return score;
     }
 
-    private List<City> getPath() {
-
-        return null;
-    }
-
     private List<Pair> initializePopulation(int size){
 
         //randomly pick cities if total cities is too big
@@ -232,6 +297,8 @@ class TSP{
 
             recursiveHelper(result, new ArrayList<>());
         }
+
+        Collections.shuffle(result);
         return result;
 
     }
@@ -245,14 +312,14 @@ class TSP{
         }
         else{
 
-            int i = random.nextInt(0, cities.size());
+            int i = random.nextInt(cities.size());
             while (repeat(curr, i)){
 
-                i = random.nextInt(0, cities.size());
+                i = random.nextInt(cities.size());
             }
 
 
-            System.out.println("adding valid city");
+            //System.out.println("adding valid city");
             curr.add(i);
             recursiveHelper(result, new ArrayList<>(curr));
             curr.remove(curr.size() - 1);
@@ -280,7 +347,7 @@ public class homework {
 
         TSP tsp= new TSP();
 
-
+        tsp.approximate();
 
     }
 }
